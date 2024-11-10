@@ -7,10 +7,11 @@
     <uses-feature android:name="android.hardware.camera.autofocus" />
     <!-- Permissions pour la liste de contact -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
 
     
     <application
-        android:label="wave_mobile_flutter"
+        android:label="Codev13"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

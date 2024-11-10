@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wave_mobile_flutter/api/index.dart';
+import 'package:wave_mobile_flutter/ui/pages/home_page.dart';
 
 class CodesecretPage extends StatefulWidget {
-  CodesecretPage({super.key});
+  final String telephone;
+  CodesecretPage({required this.telephone, super.key});
 
   @override
   _CodesecretPageState createState() => _CodesecretPageState();
@@ -141,12 +143,19 @@ class _CodesecretPageState extends State<CodesecretPage> {
                           );
 
                           // Collect entered PIN code
-                          String password = _controllers.map((e) => e.text).join();
+                          String password =
+                              _controllers.map((e) => e.text).join();
 
-                          dynamic result = await ApiFetch.login("+221767819339",password);
+                          dynamic result =
+                              await ApiFetch.login(widget.telephone, password);
 
                           if (result["status"] == "OK") {
-                            Navigator.pushNamed(context, '/home');
+                            // Navigator.pushNamed(context, '/home');
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                  builder: (context) => HomePage()),
+                              (route) => false,
+                            );
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(

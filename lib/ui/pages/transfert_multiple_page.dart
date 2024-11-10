@@ -2,24 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:wave_mobile_flutter/api/client.dart';
+import 'package:wave_mobile_flutter/dto/contact_dto_response.dart';
 import 'package:wave_mobile_flutter/dto/transaction_request.dart';
 import 'package:wave_mobile_flutter/providers/solde_provider.dart';
 
-class TransferContactPage extends StatefulWidget {
-  final String name;
-  final String phoneNumber;
+class TransferMultipleContactsPage extends StatefulWidget {
+  final List<Contact> selectedContacts;
 
-  const TransferContactPage({
+  const TransferMultipleContactsPage({
     super.key,
-    required this.name,
-    required this.phoneNumber,
+    required this.selectedContacts,
   });
 
   @override
-  State<TransferContactPage> createState() => _TransferContactPageState();
+  State<TransferMultipleContactsPage> createState() =>
+      _TransferMultipleContactsPageState();
 }
 
-class _TransferContactPageState extends State<TransferContactPage> {
+class _TransferMultipleContactsPageState
+    extends State<TransferMultipleContactsPage> {
   static const primaryColor = Color(0xFF4749D5);
   static const backgroundColor = Color(0xFFF5F6F9);
   static const textColor = Color(0xFF2D3142);
@@ -48,8 +49,8 @@ class _TransferContactPageState extends State<TransferContactPage> {
   void _calculateReceivedAmount() {
     if (_sentAmountController.text.isNotEmpty) {
       double montantEnvoye = double.tryParse(_sentAmountController.text) ?? 0;
-      _receivedAmountController.text =
-          (montantEnvoye * 0.95).toStringAsFixed(2); // Exemple: 5% de frais
+      _receivedAmountController.text = (montantEnvoye * 0.95)
+          .toStringAsFixed(2); // Example: 5% fee deduction
     } else {
       _receivedAmountController.clear();
     }
@@ -61,7 +62,7 @@ class _TransferContactPageState extends State<TransferContactPage> {
       backgroundColor: backgroundColor,
       appBar: AppBar(
         backgroundColor: primaryColor,
-        title: const Text('Transfert de Contact'),
+        title: const Text('Page de Transfert Plusieurs Contacts'),
         titleTextStyle: const TextStyle(
           color: Colors.white,
           fontSize: 20,
@@ -75,7 +76,7 @@ class _TransferContactPageState extends State<TransferContactPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildContactInfo(),
+                _buildSelectedContactsGrid(),
                 const SizedBox(height: 24),
                 _buildAmountField(
                   controller: _sentAmountController,
@@ -105,7 +106,7 @@ class _TransferContactPageState extends State<TransferContactPage> {
     );
   }
 
-  Widget _buildContactInfo() {
+  Widget _buildSelectedContactsGrid() {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -114,23 +115,44 @@ class _TransferContactPageState extends State<TransferContactPage> {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.name,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.phoneNumber,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: widget.selectedContacts.map((contact) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            "${contact.nom} ${contact.prenom}",
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                          Text(
+                            contact.telephone,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ],
         ),
@@ -186,13 +208,14 @@ class _TransferContactPageState extends State<TransferContactPage> {
             ),
           );
 
-          List<TransactionRequest> transferts = [
-            TransactionRequest(
-              telephone: "+221${widget.phoneNumber}",
+          List<TransactionRequest> transferts =
+              widget.selectedContacts.map((contact) {
+            return TransactionRequest(
+              telephone: "+221${contact.telephone}",
               montantEnvoye: double.parse(_sentAmountController.text),
               montantRecus: double.parse(_receivedAmountController.text),
-            ),
-          ];
+            );
+          }).toList();
 
           dynamic result = await ClientFetch.transfertsClient(transferts);
 

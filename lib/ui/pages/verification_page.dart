@@ -148,7 +148,7 @@ class _VerificationPageState extends State<VerificationPage> {
                               await ApiFetch.verifyCode(verificationCode);
 
                           if (result["status"] == "OK") {
-                            Navigator.pushNamed(context, '/codesecret');
+                            Navigator.pushNamed(context, '/codesecret',arguments: {'telephone': result["data"]["telephone"]});
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(

@@ -12,4 +12,8 @@ class TokenStorage {
   static Future<String?> getToken() async {
     return await _storage.read(key: _tokenKey);
   }
+
+  static Future<void> logout() async {
+    await _storage.delete(key: 'jwt_token');
+  }
 }

@@ -1,6 +1,6 @@
-import 'package:contacts_service/contacts_service.dart';
 import 'package:wave_mobile_flutter/config/database_helper.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 
 class ContactSyncService {
   final DatabaseHelper dbHelper = DatabaseHelper.instance;
@@ -9,15 +9,15 @@ class ContactSyncService {
     // Vérifiez et demandez la permission pour accéder aux contacts
     if (await Permission.contacts.request().isGranted) {
       // Récupérez les contacts du répertoire de l'appareil
-      Iterable<Contact> deviceContacts = await ContactsService.getContacts();
+      final contacts = await FlutterContacts.getContacts(withProperties: true);
 
       // Insérez chaque contact dans la base de données locale SQLite
-      for (var contact in deviceContacts) {
-        if (contact.phones != null && contact.phones!.isNotEmpty) {
+      for (var contact in contacts) {
+        if (contact.phones != null && contact.phones.isNotEmpty) {
           final contactData = {
-            'nom': contact.givenName ?? '',
-            'prenom': contact.familyName ?? '',
-            'telephone': contact.phones!.first.value ?? '',
+            'nom': contact.name.last,
+            'prenom': contact.name.first,
+            'telephone': contact.phones.first.number,
             'isFavorite': 0
           };
           await dbHelper.addContact(contactData);

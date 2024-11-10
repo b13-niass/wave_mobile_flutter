@@ -22,7 +22,7 @@ class DatabaseHelper {
   Future _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE contacts (
-          id INTEGER PRIMARY KEY,
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
           nom TEXT,
           prenom TEXT,
           telephone TEXT UNIQUE,
@@ -39,7 +39,8 @@ class DatabaseHelper {
   // Méthodes d'insertion, de mise à jour et de récupération des contacts
   Future<int> addContact(Map<String, dynamic> contact) async {
     final db = await instance.database;
-    return await db.insert('contacts', contact);
+    return await db.insert('contacts', contact,
+        conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
   Future<List<Map<String, dynamic>>> fetchContacts() async {

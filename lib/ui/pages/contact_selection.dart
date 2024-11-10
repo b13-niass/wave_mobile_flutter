@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
-
-class Contact {
-  final int id;
-  final String name;
-  late bool isFavorite;
-
-  Contact({required this.id, required this.name, required this.isFavorite});
-}
+import 'package:wave_mobile_flutter/config/database_helper.dart';
+import 'package:wave_mobile_flutter/dto/contact_dto_response.dart';
 
 class ContactSelectionPage extends StatefulWidget {
   ContactSelectionPage({super.key});
@@ -22,34 +16,27 @@ class _ContactSelectionPageState extends State<ContactSelectionPage> {
 
   Set<int> selectedContacts = {};
   bool isSelectionMode = false;
+  bool isLoading = true; // Track loading state
   String activeTab = 'contacts';
   final TextEditingController searchController = TextEditingController();
+  List<Contact> contacts = [];
 
-  final List<Contact> contacts = [
-    Contact(id: 1, name: 'Jean Dupont', isFavorite: true),
-    Contact(id: 2, name: 'Marie Martin', isFavorite: false),
-    Contact(id: 3, name: 'Pierre Durant', isFavorite: true),
-    Contact(id: 4, name: 'Sophie Bernard', isFavorite: false),
-  ];
-
-  List<Contact> get filteredContacts {
-    return contacts.where((contact) {
-      bool matchesSearch = contact.name
-          .toLowerCase()
-          .contains(searchController.text.toLowerCase());
-      bool matchesTab = activeTab == 'contacts' ||
-          (activeTab == 'favoris' && contact.isFavorite);
-      return matchesSearch && matchesTab;
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts();
   }
 
-  void toggleSelection(int contactId) {
+  // Load contacts from SQLite
+  Future<void> _loadContacts() async {
     setState(() {
-      if (selectedContacts.contains(contactId)) {
-        selectedContacts.remove(contactId);
-      } else {
-        selectedContacts.add(contactId);
-      }
+      isLoading = true;
+    });
+    final dbHelper = DatabaseHelper.instance;
+    final contactData = await dbHelper.fetchContacts();
+    setState(() {
+      contacts = contactData.map((map) => Contact.fromMap(map)).toList();
+      isLoading = false; // Loading complete
     });
   }
 
@@ -66,10 +53,32 @@ class _ContactSelectionPageState extends State<ContactSelectionPage> {
     });
   }
 
-  void toggleFavorite(Contact contact) {
+  void toggleSelection(int contactId) {
+    setState(() {
+      if (selectedContacts.contains(contactId)) {
+        selectedContacts.remove(contactId);
+      } else {
+        selectedContacts.add(contactId);
+      }
+    });
+  }
+
+  void toggleFavorite(Contact contact) async {
     setState(() {
       contact.isFavorite = !contact.isFavorite;
     });
+    await DatabaseHelper.instance.updateContact(contact.toMap());
+  }
+
+  List<Contact> get filteredContacts {
+    return contacts.where((contact) {
+      bool matchesSearch = contact.nom
+          .toLowerCase()
+          .contains(searchController.text.toLowerCase());
+      bool matchesTab = activeTab == 'contacts' ||
+          (activeTab == 'favoris' && contact.isFavorite);
+      return matchesSearch && matchesTab;
+    }).toList();
   }
 
   @override
@@ -82,7 +91,7 @@ class _ContactSelectionPageState extends State<ContactSelectionPage> {
           children: [
             Text(
               selectedContacts.isEmpty
-                  ? 'Transfert'
+                  ? 'Contacts'
                   : '${selectedContacts.length} sélectionné(s)',
               style: const TextStyle(color: Colors.white),
             ),
@@ -97,131 +106,170 @@ class _ContactSelectionPageState extends State<ContactSelectionPage> {
           ],
         ),
       ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextField(
-                  controller: searchController,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search, color: primaryColor),
-                    hintText: 'Rechercher',
-                    fillColor: Colors.white,
-                    filled: true,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          BorderSide(color: primaryColor.withOpacity(0.3)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: primaryColor, width: 2),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {});
-                  },
-                ),
-              ),
-              Row(
-                children: [
-                  _buildTab('Favoris', 'favoris'),
-                  _buildTab('Contacts', 'contacts'),
-                ],
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: selectedContacts.isNotEmpty
-                      ? const EdgeInsets.only(bottom: 80)
-                      : EdgeInsets.zero,
-                  itemCount: filteredContacts.length,
-                  itemBuilder: (context, index) {
-                    final contact = filteredContacts[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: primaryColor.withOpacity(0.1),
-                          child: Text(
-                            contact.name[0],
-                            style: const TextStyle(color: primaryColor),
+      body: isLoading
+          ? const Center(
+              child: CircularProgressIndicator()) // Show loader while loading
+          : Stack(
+              children: [
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextField(
+                        controller: searchController,
+                        decoration: InputDecoration(
+                          prefixIcon:
+                              const Icon(Icons.search, color: primaryColor),
+                          hintText: 'Rechercher',
+                          fillColor: Colors.white,
+                          filled: true,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                                color: primaryColor.withOpacity(0.3)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide:
+                                BorderSide(color: primaryColor, width: 2),
                           ),
                         ),
-                        title: Text(
-                          contact.name,
-                          style: const TextStyle(color: textColor),
-                        ),
-                        trailing: isSelectionMode
-                            ? Checkbox(
-                                activeColor: primaryColor,
-                                value: selectedContacts.contains(contact.id),
-                                onChanged: (bool? value) {
-                                  toggleSelection(contact.id);
-                                },
-                              )
-                            : PopupMenuButton<String>(
-                                icon:
-                                    Icon(Icons.more_vert, color: primaryColor),
-                                onSelected: (value) {
-                                  if (value == 'favorite') {
-                                    toggleFavorite(contact);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                    value: 'favorite',
-                                    child: Text(activeTab == 'favoris'
-                                        ? 'Enlever des Favoris'
-                                        : 'Ajouter aux Favoris'),
-                                  ),
-                                ],
-                              ),
-                        onTap: isSelectionMode
-                            ? () => toggleSelection(contact.id)
-                            : null,
+                        onChanged: (value) {
+                          setState(() {});
+                        },
                       ),
-                    );
-                  },
+                    ),
+                    Row(
+                      children: [
+                        _buildTab('Favoris', 'favoris'),
+                        _buildTab('Contacts', 'contacts'),
+                      ],
+                    ),
+                    Expanded(
+                      child: filteredContacts.isNotEmpty
+                          ? ListView.builder(
+                              padding: selectedContacts.isNotEmpty
+                                  ? const EdgeInsets.only(bottom: 80)
+                                  : EdgeInsets.zero,
+                              itemCount: filteredContacts.length,
+                              itemBuilder: (context, index) {
+                                final contact = filteredContacts[index];
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 2,
+                                  child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor:
+                                            primaryColor.withOpacity(0.1),
+                                        child: Text(
+                                          contact.prenom.isNotEmpty
+                                              ? contact.prenom[0]
+                                              : 'N', // Fallback to 'N' if contact.nom is empty
+                                          style: const TextStyle(
+                                              color: primaryColor),
+                                        ),
+                                      ),
+                                      title: Text(
+                                        '${contact.prenom} ${contact.nom}',
+                                        style:
+                                            const TextStyle(color: textColor),
+                                      ),
+                                      trailing: isSelectionMode
+                                          ? Checkbox(
+                                              activeColor: primaryColor,
+                                              value: selectedContacts
+                                                  .contains(contact.id),
+                                              onChanged: (bool? value) {
+                                                toggleSelection(contact.id);
+                                              },
+                                            )
+                                          : PopupMenuButton<String>(
+                                              icon: Icon(Icons.more_vert,
+                                                  color: primaryColor),
+                                              onSelected: (value) {
+                                                if (value == 'favorite') {
+                                                  toggleFavorite(contact);
+                                                }
+                                              },
+                                              itemBuilder: (context) => [
+                                                PopupMenuItem(
+                                                  value: 'favorite',
+                                                  child: Text(activeTab ==
+                                                          'favoris'
+                                                      ? 'Enlever des Favoris'
+                                                      : 'Ajouter aux Favoris'),
+                                                ),
+                                              ],
+                                            ),
+                                      onTap: () {
+                                        if (isSelectionMode) {
+                                          toggleSelection(contact.id);
+                                        } else {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/transfertcontact',
+                                            arguments: {
+                                              'name':
+                                                  '${contact.prenom}${contact.nom}',
+                                              'phoneNumber': contact.telephone,
+                                            },
+                                          );
+                                        }
+                                      }),
+                                );
+                              },
+                            )
+                          : const Center(
+                              child: Text(
+                                'No contacts found.',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          if (selectedContacts.isNotEmpty)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: ElevatedButton(
-                onPressed: () {
-                  print('Transfert pour ${selectedContacts.length} contact(s)');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                if (selectedContacts.isNotEmpty)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/transfertmultiple',
+                          arguments: {
+                            'contacts': contacts
+                                .where((contact) =>
+                                    selectedContacts.contains(contact.id))
+                                .toList()
+                          },
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
+                      ),
+                      child: const Text(
+                        'Transférer',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
-                  elevation: 4,
-                ),
-                child: const Text(
-                  'Transférer',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              ],
             ),
-        ],
-      ),
     );
   }
 
